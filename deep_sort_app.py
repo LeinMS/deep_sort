@@ -221,6 +221,9 @@ def bool_string(input_string):
 def parse_args():
     """ Parse command line arguments.
     """
+
+    # Создаём директорию для результатов (если ещё нет)
+    os.makedirs("outputs", exist_ok=True)
     parser = argparse.ArgumentParser(description="Deep SORT")
     parser.add_argument(
         "--sequence_dir", help="Path to MOTChallenge sequence directory",
@@ -232,7 +235,7 @@ def parse_args():
         "--output_file", help="Path to the tracking output file. This file will"
         " contain the tracking results on completion.",
         # default="hypotheses.txt")
-        default = os.path.join(tempfile.gettempdir(), "hypotheses.txt"))
+        default = os.path.join("outputs", "hypotheses.txt"))
     parser.add_argument(
         "--min_confidence", help="Detection confidence threshold. Disregard "
         "all detections that have a confidence lower than this value.",
