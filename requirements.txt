@@ -7,3 +7,5 @@ opencv-python
 pyyaml
 ultralytics
 torchreid
+gdown
+tensorboard
