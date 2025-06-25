@@ -1,3 +1,10 @@
 numpy
 opencv-python
 scipy
+torch
+torchvision
+numpy
+opencv-python
+pyyaml
+ultralytics
+torchreid
