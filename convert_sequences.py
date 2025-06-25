@@ -38,6 +38,5 @@ def scan_mot_sequences(base_folder):
         convert_sequence(img_folder, output_path)
 
 if __name__ == "__main__":
-    print("Конвертация MOT16 в видео...")
-    scan_mot_sequences("MOT16/test")
-    scan_mot_sequences("MOT16/train")
+    print("Конвертация img в .mp4...")
+    scan_mot_sequences("data/")
