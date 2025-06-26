@@ -1,25 +1,60 @@
-# run_tracker.py (обновлён: добавлена функция run_tracking для batch запуска)
+# run_tracker.py
 
 import cv2
 import os
+import time
 from detectors.yolov5_detector import YOLOv5Detector
+from detectors.yolov8_detector import YOLOv8Detector  # ✅ добавлено
+from detectors.fasterrcnn_detector import FasterRCNNDetector
+from detectors.ssd_detector import SSDDetector
+
 from reid_models.torchreid_model import TorchReID
+from reid_models.original_deepsort import OriginalReID
+from reid_models.resnet18_reid import ResNet18ReID
+
 from deep_sort.tracker import Tracker
 from deep_sort.nn_matching import NearestNeighborDistanceMetric
-from utils.config_parser import load_config
-from utils.drawing import draw_tracks
 from deep_sort.detection import Detection
+from utils.drawing import draw_tracks
+from utils.config_parser import load_config
 from utils.save_mot_txt import save_tracking_results
 
-def run_tracking(video_path, output_video, output_txt, display=True):
-    detector = YOLOv5Detector(model_path="yolov5n.pt", confidence_threshold=0.3)
-    reid = TorchReID(model_name="osnet_x0_25")
-    metric = NearestNeighborDistanceMetric("cosine", 0.4, 100)
+
+def build_detector(cfg):
+    name = cfg.name.lower()
+    if name == "yolov5":
+        return YOLOv5Detector(cfg.model_path, cfg.confidence)
+    elif name == "yolov8":  # ✅ новый детектор
+        return YOLOv8Detector(cfg.model_path, cfg.confidence)
+    elif name == "fasterrcnn":
+        return FasterRCNNDetector(cfg.confidence)
+    elif name == "ssd":
+        return SSDDetector(cfg.confidence)
+    else:
+        raise ValueError(f"Неизвестный детектор: {name}")
+
+def build_reid(cfg):
+    name = cfg.name.lower()
+    if name == "torchreid":
+        return TorchReID(cfg.model_name)
+    elif name == "original":
+        return OriginalReID(cfg.model_path)
+    elif name == "resnet18":
+        return ResNet18ReID(cfg.model_path)
+    else:
+        raise ValueError(f"Неизвестная ReID модель: {name}")
+
+def run_tracking(video_path, output_video, output_txt, display=True, config_path="configs/deepsort_config.yaml"):
+    config = load_config(config_path)
+
+    detector = build_detector(config.detector)
+    reid = build_reid(config.reid)
+    metric = NearestNeighborDistanceMetric("cosine", config.tracker.max_iou_distance, config.tracker.nn_budget)
     tracker = Tracker(metric)
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print(f"❌ Не удалось открыть видео {video_path}")
+        print(f"Не удалось открыть видео {video_path}")
         return
 
     os.makedirs(os.path.dirname(output_video), exist_ok=True)
@@ -32,11 +67,12 @@ def run_tracking(video_path, output_video, output_txt, display=True):
     out = cv2.VideoWriter(output_video, fourcc, fps, (width, height))
 
     if not out.isOpened():
-        print(f"❌ Не удалось создать выходной файл {output_video}")
+        print(f"Не удалось создать выходной файл {output_video}")
         return
 
     frame_id = 1
     track_history = []
+    start_time = time.time()
 
     while True:
         ret, frame = cap.read()
@@ -59,6 +95,15 @@ def run_tracking(video_path, output_video, output_txt, display=True):
         tracker.update(detections)
 
         frame = draw_tracks(frame, tracker.tracks)
+
+        # === Добавляем FPS и номер кадра ===
+        elapsed = time.time() - start_time
+        curr_fps = frame_id / elapsed
+        cv2.putText(frame, f"FPS: {curr_fps:.1f}", (10, 20),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
+        cv2.putText(frame, f"Frame: {frame_id}", (10, 40),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
+
         out.write(frame)
 
         for track in tracker.tracks:
