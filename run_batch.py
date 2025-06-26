@@ -19,6 +19,7 @@ video_list = [
     "MOT16-11.mp4"
 ]
 
+
 for video_file in video_list:
     name = os.path.splitext(video_file)[0]
     print(f"\nЗапускаем трекинг для: {name}")
