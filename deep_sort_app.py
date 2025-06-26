@@ -258,6 +258,19 @@ def parse_args():
         default=True, type=bool_string)
     return parser.parse_args()
 
+def run_deep_sort(sequence_dir, detection_npy_path, output_txt, display=False):
+    run(
+        sequence_dir=sequence_dir,
+        detection_file=detection_npy_path,
+        output_file=output_txt,
+        min_confidence=0.3,
+        nms_max_overlap=1.0,
+        min_detection_height=0,
+        max_cosine_distance=0.2,
+        nn_budget=100,
+        display=display
+    )
+
 
 if __name__ == "__main__":
     args = parse_args()
