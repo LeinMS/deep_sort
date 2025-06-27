@@ -139,9 +139,7 @@ PS> python generate_videos.py `
 
 We provide a ready-to-run Colab notebook that includes full setup, tracking execution, and result visualization.
 
-📎 **Notebook**: [`Enhanced_DeepSORT.ipynb`](https://drive.google.com/file/d/1HvZOdygMv7LmiM_Lunl8rH8zVmvi3K7w/view?usp=sharing)  
-📍 **Location**: `/notebooks/Enhanced_DeepSORT.ipynb`  
-▶️ [Open in Google Colab](https://drive.google.com/file/d/1HvZOdygMv7LmiM_Lunl8rH8zVmvi3K7w/view?usp=sharing)
+▶️ [Open in Google Colab](https://github.com/LeinMS/deep_sort/blob/develop/_new_deepsort.ipynb)
 
 
 ## Report
