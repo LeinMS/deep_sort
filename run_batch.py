@@ -20,14 +20,19 @@ video_list = [
 ]
 
 
+tracker_name='B'
 for video_file in video_list:
     name = os.path.splitext(video_file)[0]
-    print(f"\nЗапускаем трекинг для: {name}")
+    print(f"\n🚀 Запускаем трекинг для: {name}")
+
+    video_path = os.path.normpath(os.path.join("videos", video_file))
+    output_video = os.path.normpath(os.path.join("outputs", tracker_name, f"{name}_results.mp4"))
+    output_txt = os.path.normpath(os.path.join("trackers", "mot_challenge", tracker_name, "data", f"{name}.txt"))
 
     run_tracking(
-        video_path=f"videos/{video_file}",
-        output_video=f"outputs/{tracker_name}/{name}_results.mp4",
-        output_txt=f"trackers/mot_challenge/{tracker_name}/data/{name}.txt",
+        video_path=video_path,
+        output_video=output_video,
+        output_txt=output_txt,
         display=False,
         config_path=config_path
     )
