@@ -1,10 +1,12 @@
 # run_tracker.py
 
-import cv2
 import os
 import time
+import cv2
+import torch
+
 from detectors.yolov5_detector import YOLOv5Detector
-from detectors.yolov8_detector import YOLOv8Detector  # ✅ добавлено
+from detectors.yolov8_detector import YOLOv8Detector
 from detectors.fasterrcnn_detector import FasterRCNNDetector
 from detectors.ssd_detector import SSDDetector
 
@@ -20,41 +22,47 @@ from utils.config_parser import load_config
 from utils.save_mot_txt import save_tracking_results
 
 
-def build_detector(cfg):
+def build_detector(cfg, device):
     name = cfg.name.lower()
     if name == "yolov5":
-        return YOLOv5Detector(cfg.model_path, cfg.confidence)
-    elif name == "yolov8":  # ✅ новый детектор
-        return YOLOv8Detector(cfg.model_path, cfg.confidence)
+        return YOLOv5Detector(cfg.model_path, cfg.confidence, device=device)
+    elif name == "yolov8":
+        return YOLOv8Detector(cfg.model_path, cfg.confidence, device=device)
     elif name == "fasterrcnn":
-        return FasterRCNNDetector(cfg.confidence)
+        return FasterRCNNDetector(cfg.confidence, device=device)
     elif name == "ssd":
-        return SSDDetector(cfg.confidence)
+        return SSDDetector(cfg.confidence, device=device)
     else:
-        raise ValueError(f"Неизвестный детектор: {name}")
+        raise ValueError(f"Unknown detector: {name}")
 
-def build_reid(cfg):
+
+def build_reid(cfg, device):
     name = cfg.name.lower()
     if name == "torchreid":
-        return TorchReID(cfg.model_name)
+        return TorchReID(cfg.model_name, device=device)
     elif name == "original":
-        return OriginalReID(cfg.model_path)
+        return OriginalReID(cfg.model_path, device=device)
     elif name == "resnet18":
-        return ResNet18ReID(cfg.model_path)
+        return ResNet18ReID(cfg.model_path, device=device)
     else:
-        raise ValueError(f"Неизвестная ReID модель: {name}")
+        raise ValueError(f"Unknown ReID model: {name}")
+
 
 def run_tracking(video_path, output_video, output_txt, display=True, config_path="configs/deepsort_config.yaml"):
     config = load_config(config_path)
 
-    detector = build_detector(config.detector)
-    reid = build_reid(config.reid)
+    # Автоматически выбираем устройство
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    print(f"Using device: {device}")
+
+    detector = build_detector(config.detector, device)
+    reid = build_reid(config.reid, device)
     metric = NearestNeighborDistanceMetric("cosine", config.tracker.max_iou_distance, config.tracker.nn_budget)
     tracker = Tracker(metric)
 
     cap = cv2.VideoCapture(video_path)
     if not cap.isOpened():
-        print(f"Не удалось открыть видео {video_path}")
+        print(f"Could not open video {video_path}")
         return
 
     os.makedirs(os.path.dirname(output_video), exist_ok=True)
@@ -67,7 +75,7 @@ def run_tracking(video_path, output_video, output_txt, display=True, config_path
     out = cv2.VideoWriter(output_video, fourcc, fps, (width, height))
 
     if not out.isOpened():
-        print(f"Не удалось создать выходной файл {output_video}")
+        print(f"Could not create output video {output_video}")
         return
 
     frame_id = 1
@@ -82,7 +90,7 @@ def run_tracking(video_path, output_video, output_txt, display=True, config_path
         detections_xywh = detector.detect(frame)
         features = []
         for (x, y, w, h, conf) in detections_xywh:
-            crop = frame[int(y):int(y+h), int(x):int(x+w)]
+            crop = frame[int(y):int(y + h), int(x):int(x + w)]
             feat = reid.extract_features(crop)
             features.append(feat)
 
@@ -96,13 +104,13 @@ def run_tracking(video_path, output_video, output_txt, display=True, config_path
 
         frame = draw_tracks(frame, tracker.tracks)
 
-        # === Добавляем FPS и номер кадра ===
+        # Добавляем FPS и номер кадра
         elapsed = time.time() - start_time
         curr_fps = frame_id / elapsed
         cv2.putText(frame, f"FPS: {curr_fps:.1f}", (10, 20),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
         cv2.putText(frame, f"Frame: {frame_id}", (10, 40),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255,255,255), 2)
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
         out.write(frame)
 
@@ -125,6 +133,7 @@ def run_tracking(video_path, output_video, output_txt, display=True, config_path
 
     save_tracking_results(output_txt, track_history)
 
+
 def main():
     config = load_config("configs/deepsort_config.yaml")
     video_path = config.input.video_path
@@ -132,6 +141,7 @@ def main():
     seq_name = os.path.splitext(os.path.basename(video_path))[0]
     output_txt = f"outputs/mot_challenge/{seq_name}/det.txt"
     run_tracking(video_path, output_video, output_txt, config.input.display)
+
 
 if __name__ == "__main__":
     main()
