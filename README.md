@@ -1,136 +1,158 @@
-# Deep SORT
+# Enhanced DeepSORT: Modern Detection & ReID Integration
 
-## Introduction
+## Overview
 
-This repository contains code for *Simple Online and Realtime Tracking with a Deep Association Metric* (Deep SORT).
-We extend the original [SORT](https://github.com/abewley/sort) algorithm to 
-integrate appearance information based on a deep appearance descriptor.
-See the [arXiv preprint](https://arxiv.org/abs/1703.07402) for more information.
+This repository contains an enhanced implementation of **DeepSORT** that integrates modern, efficient person detection and ReID algorithms. It builds upon the original DeepSORT codebase, extending it with support for multiple detectors, ReID models, and optional segmentation, while preserving the original commit history. This solution achieves better performance than the unmodified DeepSORT on MOT Challenge videos, balancing tracking accuracy and real-time speed fileciteturn0file0.
 
-## Installation
+## Features
 
-First, clone the repository and install dependencies:
+* **Multiple Detection Models**: Easily switch between at least three detectors (YOLOv5, YOLOv8, SSD-Lite) via configuration.
+* **Multiple ReID Models**: Support for at least three ReID backbones (original DeepSORT, ResNet18, TorchReID) with dynamic selection.
+* **Optional Segmentation**: Toggle between detection and segmentation-based tracking pipelines.
+* **Real-Time Performance**: Achieves ≥5 FPS in Colab on at least one model combination, outperforming the original implementation in HOTA metric.
+* **Batch Processing**: Process all MOT Challenge videos in one command with configurable parameters.
+* **Evaluation & Visualization**: Built-in scripts for computing HOTA, generating tracking overlays, and exporting result videos.
+* **Colab Notebook**: Fully operational Colab with execution instructions available in `/notebooks`.
+
+## Repository Structure
+
+```text
+├── configs/                 # Detector and tracker configurations (.yaml)
+│   ├── ssdlite320_mbv3_resnet18.yaml
+│   ├── yolov5_torchreid.yaml
+│   └── yolov8_mobilenetv2.yaml
+├── detectors/               # Detector implementations
+├── reid_models/             # ReID backbones
+├── application_util/        # Preprocessing & visualization utilities
+├── tools/                   # Helper scripts (generate_detections, freeze_model)
+├── utils/                   # Config parsing, drawing, MOT export
+├── videos/                  # Raw MOT Challenge videos
+├── data/                    # MOT dataset directories
+├── outputs/                 # Tracking outputs per config
+├── trackers/                # Formatted tracker results for MOT Challenge
+├── notebooks/               # Colab notebooks with tutorials
+├── run_batch.py             # Batch tracker execution script
+├── evaluate_motchallenge.py # Compute HOTA on MOT datasets
+├── generate_videos.py       # Build overlay videos of tracking results
+├── convert_sequences.py     # Convert image folders to .mp4 videos
+├── requirements.txt         # Python dependencies
+└── README.md                # Project documentation
 ```
-git clone https://github.com/nwojke/deep_sort.git
-cd deep_sort
 
-# The following command installs all the dependencies required to run the
-# tracker and regenerate detections. If you only need to run the tracker with
-# existing detections, you can use pip install -r requirements.txt instead.
-pip install -r requirements-gpu.txt
+## Setup
+
+1. **Clone the repository**:
+
+   ```powershell
+   PS> git clone --branch develop --single-branch https://github.com/LeinMS/deep_sort.git
+   ```
+2. **Create a Python environment**:
+
+   ```powershell
+   PS> python -m venv .venv
+   PS> .\.venv\Scripts\Activate.ps1
+   ```
+3. **Install dependencies**:
+
+   ```powershell
+   PS> pip install -r requirements.txt
+   ```
+
+## Data Preparation
+
+1. **Download MOT Challenge datasets**:
+
+   * Place sequences under `data/{SequenceName}` with subfolders `img1/`, `gt/`, and `det/`.
+2. **Convert image sequences to videos** (optional):
+
+   ```powershell
+   PS> python convert_sequences.py
+   ```
+
+## Generating Detections
+
+Use one of the supported detectors to generate bounding-box proposals:
+
+```powershell
+PS> python tools\generate_detections.py `
+    --model resources\models\<model>.pt `
+    --mot_dir data\MOT16-09 `
+    --output_dir resources\detections\MOT16-09
 ```
-Then, download pre-generated detections and the CNN checkpoint file from
-[here](https://drive.google.com/open?id=18fKzfqnqhqW3s9zwsCbnVJ5XF2JFeqMp).
 
-*NOTE:* The candidate object locations of our pre-generated detections are
-taken from the following paper:
+## Configuring and Running the Tracker
+
+Select a detector+ReID combo via one of the YAML configs in `configs/`:
+
+```powershell
+PS> .\.venv\Scripts\Activate.ps1  # ensure env is active
+PS> python run_batch.py configs\yolov5_torchreid.yaml
 ```
-F. Yu, W. Li, Q. Li, Y. Liu, X. Shi, J. Yan. POI: Multiple Object Tracking with
-High Performance Detection and Appearance Feature. In BMTT, SenseTime Group
-Limited, 2016.
+
+This processes the standard MOT set: TUD-Campus, TUD-Stadtmitte, KITTI-17, PETS09-S2L1, MOT16-09, MOT16-11.
+
+### Single-Sequence Run
+
+To track a single sequence:
+
+```powershell
+PS> python deep_sort_app.py `
+    --sequence_dir data\MOT16-09 `
+    --detection_file resources\detections\MOT16-09.npy `
+    --output_file outputs\MOT16-09.txt `
+    --min_confidence 0.3 `
+    --max_cosine_distance 0.2 `
+    --nn_budget 100 `
+    --display False
 ```
-We have replaced the appearance descriptor with a custom deep convolutional
-neural network (see below).
 
-## Running the tracker
+## Evaluation
 
-The following example starts the tracker on one of the
-[MOT16 benchmark](https://motchallenge.net/data/MOT16/)
-sequences.
-We assume resources have been extracted to the repository root directory and
-the MOT16 benchmark data is in `./MOT16`:
+Compute the HOTA metric for all sequences:
+
+```powershell
+PS> python .\scripts\run_mot_challenge.py `
+    --BENCHMARK MOT16 `
+    --SPLIT_TO_EVAL train `
+    --TRACKERS_TO_EVAL yolov5_torchreid_tracker `
+    --METRICS HOTA `
+    --USE_PARALLEL False `
+    --NUM_PARALLEL_CORES 1 `
+    --SEQMAP_FILE .\seqmaps\seqmaps_mot16.txt `
+    --SKIP_SPLIT_FOL True
 ```
-python deep_sort_app.py \
-    --sequence_dir=./MOT16/test/MOT16-06 \
-    --detection_file=./resources/detections/MOT16_POI_test/MOT16-06.npy \
-    --min_confidence=0.3 \
-    --nn_budget=100 \
-    --display=True
+
+Results (per-sequence and average HOTA) are saved in `evaluation_results/`.
+
+## Visualization
+
+Generate overlay videos of tracking results:
+
+```powershell
+PS> python generate_videos.py `
+    --mot_dir data `
+    --result_dir trackers\mot_challenge\<config_name>\data `
+    --output_dir videos\results
 ```
-Check `python deep_sort_app.py -h` for an overview of available options.
-There are also scripts in the repository to visualize results, generate videos,
-and evaluate the MOT challenge benchmark.
 
-## Generating detections
+## 🚀 Google Colab Notebook
 
-Beside the main tracking application, this repository contains a script to
-generate features for person re-identification, suitable to compare the visual
-appearance of pedestrian bounding boxes using cosine similarity.
-The following example generates these features from standard MOT challenge
-detections. Again, we assume resources have been extracted to the repository
-root directory and MOT16 data is in `./MOT16`:
-```
-python tools/generate_detections.py \
-    --model=resources/networks/mars-small128.pb \
-    --mot_dir=./MOT16/train \
-    --output_dir=./resources/detections/MOT16_train
-```
-The model has been generated with TensorFlow 1.5. If you run into
-incompatibility, re-export the frozen inference graph to obtain a new
-`mars-small128.pb` that is compatible with your version:
-```
-python tools/freeze_model.py
-```
-The ``generate_detections.py`` stores for each sequence of the MOT16 dataset
-a separate binary file in NumPy native format. Each file contains an array of
-shape `Nx138`, where N is the number of detections in the corresponding MOT
-sequence. The first 10 columns of this array contain the raw MOT detection
-copied over from the input file. The remaining 128 columns store the appearance
-descriptor. The files generated by this command can be used as input for the
-`deep_sort_app.py`.
+We provide a ready-to-run Colab notebook that includes full setup, tracking execution, and result visualization.
 
-**NOTE**: If ``python tools/generate_detections.py`` raises a TensorFlow error,
-try passing an absolute path to the ``--model`` argument. This might help in
-some cases.
+📎 **Notebook**: [`Enhanced_DeepSORT.ipynb`](https://drive.google.com/file/d/1HvZOdygMv7LmiM_Lunl8rH8zVmvi3K7w/view?usp=sharing)  
+📍 **Location**: `/notebooks/Enhanced_DeepSORT.ipynb`  
+▶️ [Open in Google Colab](https://drive.google.com/file/d/1HvZOdygMv7LmiM_Lunl8rH8zVmvi3K7w/view?usp=sharing)
 
-## Training the model
 
-To train the deep association metric model we used a novel [cosine metric learning](https://github.com/nwojke/cosine_metric_learning) approach which is provided as a separate repository.
+## Report
 
-## Highlevel overview of source files
+See `report/Enhanced_DeepSORT_Report.pdf` for a detailed description of model choices, parameter tuning, and performance analysis.
 
-In the top-level directory are executable scripts to execute, evaluate, and
-visualize the tracker. The main entry point is in `deep_sort_app.py`.
-This file runs the tracker on a MOTChallenge sequence.
+## License
 
-In package `deep_sort` is the main tracking code:
+This project is released under the MIT License.
 
-* `detection.py`: Detection base class.
-* `kalman_filter.py`: A Kalman filter implementation and concrete
-   parametrization for image space filtering.
-* `linear_assignment.py`: This module contains code for min cost matching and
-   the matching cascade.
-* `iou_matching.py`: This module contains the IOU matching metric.
-* `nn_matching.py`: A module for a nearest neighbor matching metric.
-* `track.py`: The track class contains single-target track data such as Kalman
-  state, number of hits, misses, hit streak, associated feature vectors, etc.
-* `tracker.py`: This is the multi-target tracker class.
+## References
 
-The `deep_sort_app.py` expects detections in a custom format, stored in .npy
-files. These can be computed from MOTChallenge detections using
-`generate_detections.py`. We also provide
-[pre-generated detections](https://drive.google.com/open?id=1VVqtL0klSUvLnmBKS89il1EKC3IxUBVK).
-
-## Citing DeepSORT
-
-If you find this repo useful in your research, please consider citing the following papers:
-
-    @inproceedings{Wojke2017simple,
-      title={Simple Online and Realtime Tracking with a Deep Association Metric},
-      author={Wojke, Nicolai and Bewley, Alex and Paulus, Dietrich},
-      booktitle={2017 IEEE International Conference on Image Processing (ICIP)},
-      year={2017},
-      pages={3645--3649},
-      organization={IEEE},
-      doi={10.1109/ICIP.2017.8296962}
-    }
-
-    @inproceedings{Wojke2018deep,
-      title={Deep Cosine Metric Learning for Person Re-identification},
-      author={Wojke, Nicolai and Bewley, Alex},
-      booktitle={2018 IEEE Winter Conference on Applications of Computer Vision (WACV)},
-      year={2018},
-      pages={748--756},
-      organization={IEEE},
-      doi={10.1109/WACV.2018.00087}
-    }
+* Original DeepSORT paper: Nicolai Wojke et al., "Simple Online and Realtime Tracking with a Deep Association Metric" fileciteturn0file1
+* Deep Cosine Metric Learning: Alex Bewley et al., WACV 2018.
