@@ -135,7 +135,7 @@ PS> python generate_videos.py `
     --output_dir videos\results
 ```
 
-## 🚀 Google Colab Notebook
+## Google Colab Notebook
 
 We provide a ready-to-run Colab notebook that includes full setup, tracking execution, and result visualization.
 
