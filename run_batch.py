@@ -19,8 +19,6 @@ video_list = [
     "MOT16-11.mp4"
 ]
 
-
-tracker_name='B'
 for video_file in video_list:
     name = os.path.splitext(video_file)[0]
     print(f"\n🚀 Запускаем трекинг для: {name}")
