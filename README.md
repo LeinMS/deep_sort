@@ -139,7 +139,7 @@ PS> python generate_videos.py `
 
 We provide a ready-to-run Colab notebook that includes full setup, tracking execution, and result visualization.
 
-▶️ [Open in Google Colab](https://github.com/LeinMS/deep_sort/blob/develop/_new_deepsort.ipynb)
+[Open in Google Colab](https://github.com/LeinMS/deep_sort/blob/develop/_new_deepsort.ipynb)
 
 
 ## Report
