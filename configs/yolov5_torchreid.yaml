@@ -1,6 +1,6 @@
 detector:
   name: yolov5
-  model_path: "resources\\models\\yolov5nu.pt"
+  model_path: "resources/models/yolov5nu.pt"
   confidence: 0.3
 
 reid:
