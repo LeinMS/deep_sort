@@ -52,7 +52,8 @@ def run_tracking(video_path, output_video, output_txt, display=True, config_path
     config = load_config(config_path)
 
     # Автоматически выбираем устройство
-    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # device = "cuda" if torch.cuda.is_available() else "cpu"
+    device='cpu'
     print(f"Using device: {device}")
 
     detector = build_detector(config.detector, device)
